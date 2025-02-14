@@ -71,8 +71,10 @@ def test_encoder(args):
             args.dump,
         )
 
+    bytes_encoded = nframes * args.frame_size
+
     kb_threshold = args.threshold / 1000
-    kb_throughput = args.test_size / total / 1000
+    kb_throughput = bytes_encoded / total / 1000
     if kb_throughput < kb_threshold:
         logger.error(
             f"Throughput too slow! {kb_throughput:,.2f} KBps < {kb_threshold:,.2f} KBps"
@@ -99,10 +101,11 @@ def test_decoder(args):
     ]
 
     logger.info("Running stress test...")
+    bytes_decoded = 0
     start = time.perf_counter()
     for frame in tqdm(frames):
         try:
-            decoder.decode(frame.data)
+            bytes_decoded += len(decoder.decode(frame.data))
         except Exception as e:
             logger.error(f"Errored on frame {frame}!")
             raise e
@@ -110,7 +113,7 @@ def test_decoder(args):
 
     # Check threshold
     kb_threshold = args.threshold / 1000
-    kb_throughput = args.test_size / total / 1000
+    kb_throughput = bytes_decoded / total / 1000
     if kb_throughput < kb_threshold:
         logger.error(
             f"Throughput too slow! {kb_throughput:,.2f} KBps < {kb_threshold:,.2f} KBps"
@@ -127,9 +130,6 @@ def parse_args():
     parser = argparse.ArgumentParser(prog="ectf25.dev.stress_test")
     parser.add_argument(
         "--frame-size", "-f", default=64, type=int, help="Size of frame"
-    )
-    parser.add_argument(
-        "--test-size", "-t", default=100000000, type=int, help="Bytes to process"
     )
     parser.add_argument(
         "--channels",
@@ -153,6 +153,9 @@ def parse_args():
         type=argparse.FileType("w"),
         default=None,
         help="Filename of the encoded frames",
+    )
+    encode_parser.add_argument(
+        "--test-size", "-t", default=100000000, type=int, help="Bytes to process"
     )
 
     decode_parser = subparsers.add_parser("decode", help="Test the decoder")
